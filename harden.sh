@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # ==============================================================================
-# Proxmox Hardening Script 🔐
+# Proxmox Hardening Script v2.0 🔐
 # Author: Taha Echakiri (Netics)
-# Description: Interactively secures Proxmox (SSH, Fail2Ban, Firewall)
+# Description: Interactive Hardening for Proxmox VE (Safety First)
 # ==============================================================================
 
 set -e
@@ -26,20 +26,22 @@ if [[ $EUID -ne 0 ]]; then
    exit 1
 fi
 
-info "Starting Hardening Process..."
+echo "=========================================="
+echo "   PROXMOX HARDENING v2.0 (Netics)"
+echo "=========================================="
 
-# 1. Update Repositories (Remove Enterprise, Add No-Sub)
-if ask "Configure 'No-Subscription' Repositories (and remove Enterprise)?"; then
+# --- 1. REPOSITORIES ---
+if ask "1. Configure 'No-Subscription' Repos & Disable Enterprise?"; then
     sed -i 's/^deb/#deb/g' /etc/apt/sources.list.d/pve-enterprise.list
     echo "deb http://download.proxmox.com/debian/pve bookworm pve-no-subscription" > /etc/apt/sources.list.d/pve-no-subscription.list
     info "Repositories updated."
 fi
 
-# 2. Install Fail2Ban
-if ask "Install and Configure Fail2Ban (Protects GUI & SSH)?"; then
+# --- 2. FAIL2BAN ---
+if ask "2. Install & Configure Fail2Ban (WebUI + SSH)?"; then
     apt-get update && apt-get install -y fail2ban
     
-    # Create Jail Config
+    # Jail
     cat <<EOF > /etc/fail2ban/jail.local
 [proxmox]
 enabled = true
@@ -59,7 +61,7 @@ maxretry = 3
 bantime = 3600
 EOF
 
-    # Create Filter
+    # Filter
     cat <<EOF > /etc/fail2ban/filter.d/proxmox.conf
 [Definition]
 failregex = pvedaemon\[.*authentication failure; rhost=<HOST> user=.* msg=.*
@@ -67,36 +69,63 @@ ignoreregex =
 EOF
 
     systemctl restart fail2ban
-    info "Fail2Ban installed and active."
+    info "Fail2Ban active."
 fi
 
-# 3. Secure SSH
-if ask "Harden SSH (Disable Root Login & Password Auth)? ⚠️  RISKY: Ensure you added your SSH Key first!"; then
+# --- 3. SSH ---
+if ask "3. HARDEN SSH (Disable Root & Password Login)? ⚠️  RISK: LOCKOUT!"; then
     cp /etc/ssh/sshd_config /etc/ssh/sshd_config.bak
+    
+    # Apply changes
     sed -i 's/^#PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
     sed -i 's/^PermitRootLogin.*/PermitRootLogin no/' /etc/ssh/sshd_config
     sed -i 's/^#PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
     sed -i 's/^PasswordAuthentication.*/PasswordAuthentication no/' /etc/ssh/sshd_config
+    sed -i 's/^#X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config
+    sed -i 's/^X11Forwarding.*/X11Forwarding no/' /etc/ssh/sshd_config
+    
+    # Add MaxTries
+    if ! grep -q "MaxAuthTries" /etc/ssh/sshd_config; then
+        echo "MaxAuthTries 3" >> /etc/ssh/sshd_config
+    fi
+    
     systemctl restart sshd
-    info "SSH Hardened. Root login disabled."
+    info "SSH Hardened."
 fi
 
-# 4. Kernel Hardening (Network)
-if ask "Apply Sysctl Network Hardening (BBR, Spoof Protection)?"; then
+# --- 4. KERNEL & NETWORK ---
+if ask "4. Apply Kernel Network Hardening (BBR, Spoof Protection)?"; then
     cat <<EOF > /etc/sysctl.d/99-pve-hardening.conf
 # IP Spoofing protection
 net.ipv4.conf.all.rp_filter = 1
 net.ipv4.conf.default.rp_filter = 1
 
-# Enable BBR Congestion Control (Speed)
+# Ignore ICMP Broadcasts
+net.ipv4.icmp_echo_ignore_broadcasts = 1
+net.ipv4.conf.all.accept_redirects = 0
+net.ipv6.conf.all.accept_redirects = 0
+
+# Enable BBR Congestion Control
 net.core.default_qdisc=fq
 net.ipv4.tcp_congestion_control=bbr
 
-# Ignore ICMP Broadcasts
-net.ipv4.icmp_echo_ignore_broadcasts = 1
+# TCP Hardening
+net.ipv4.tcp_syncookies = 1
+net.ipv4.tcp_rfc1337 = 1
 EOF
     sysctl -p /etc/sysctl.d/99-pve-hardening.conf
-    info "Network stack hardened."
+    info "Kernel parameters applied."
 fi
 
-info "Hardening Complete! Run ./audit.sh to verify."
+# --- 5. SYSTEM SERVICES ---
+if ask "5. Disable IPv6 (if not used)?"; then
+    cat <<EOF >> /etc/sysctl.d/99-disable-ipv6.conf
+net.ipv6.conf.all.disable_ipv6 = 1
+net.ipv6.conf.default.disable_ipv6 = 1
+net.ipv6.conf.lo.disable_ipv6 = 1
+EOF
+    sysctl -p /etc/sysctl.d/99-disable-ipv6.conf
+    info "IPv6 Disabled."
+fi
+
+info "Hardening Complete. Run ./audit.sh to verify."

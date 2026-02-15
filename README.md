@@ -1,4 +1,4 @@
-# Proxmox Hardening Suite 🛡️
+# Proxmox Hardening Suite v2.0 🛡️
 
 <div align="center">
 
@@ -11,6 +11,8 @@
 Audit and Harden your Proxmox VE node in minutes.
 Based on enterprise standards (CIS Benchmarks) and real-world production setups.
 
+![Security Audit Screenshot](image.png)
+
 [Report Bug](https://github.com/tahaex/proxmox-hardening-suite/issues) · [Request Feature](https://github.com/tahaex/proxmox-hardening-suite/issues)
 
 </div>
@@ -21,7 +23,7 @@ Based on enterprise standards (CIS Benchmarks) and real-world production setups.
 A default Proxmox installation is designed for usability, not security.
 *   Root SSH is often enabled.
 *   Fail2Ban is missing (brute-force attacks are easy).
-*   Kernel network stack is unoptimized.
+*   Kernel network stack is unoptimized (IPv6 enabled, ICMP redirects open).
 *   Enterprise repositories throw unrelated errors.
 
 **`proxmox-hardening-suite`** fixes this.
@@ -29,15 +31,16 @@ A default Proxmox installation is designed for usability, not security.
 ## 🛠️ The Scripts
 
 ### 1. `audit.sh` (Read-Only)
-Checks your system against 5 key security metrics:
-*   [ ] SSH Root Login Status
-*   [ ] Fail2Ban Installation & Activity
-*   [ ] PVE Firewall Status
-*   [ ] Repository Configuration (No-Subscription)
-*   [ ] Kernel Hardening (BBR, Spoofing protection)
+Running **30+ Security Checks** covering:
+*   [x] **System**: Updates, Enterprise Repos, Firewall status.
+*   [x] **SSH**: Root Login, Password Auth, MaxAuthTries, Protocol 2.
+*   [x] **Network**: IP Forwarding, BBR, ICMP Redirects, Martians.
+*   [x] **Services**: Fail2Ban, Postfix (Localhost only), Journal persistence.
+*   [x] **Users/Files**: Shadow permissions, UID 0 checks, /tmp partition.
 
 **Usage:**
 ```bash
+wget https://raw.githubusercontent.com/tahaex/proxmox-hardening-suite/main/audit.sh
 bash audit.sh
 ```
 
@@ -47,9 +50,11 @@ Applies fixes step-by-step. You choose what to apply.
 *   **Fail2Ban**: Installs and configures jails for Proxmox GUI (8006) and SSH (22).
 *   **SSH Hardening**: Disables Root Login and Password Authentication (Keys only).
 *   **Kernel Tuning**: Enables BBR congestion control and IP Spoofing protection.
+*   **IPv6**: Disables IPv6 stack (optional).
 
 **Usage:**
 ```bash
+wget https://raw.githubusercontent.com/tahaex/proxmox-hardening-suite/main/harden.sh
 chmod +x harden.sh
 ./harden.sh
 ```
@@ -60,11 +65,6 @@ chmod +x harden.sh
 **Do NOT disable Password Authentication or Root Login if you haven't added your SSH Key first.**
 You will lock yourself out.
 Always keep a backup access method (IPMI, Physical Console, or a second user).
-
----
-
-## 🧪 Testing
-We recommend testing `harden.sh` on a **Nested Proxmox VM** first if you are unsure.
 
 ---
 
