@@ -11,7 +11,8 @@
 Audit and Harden your Proxmox VE node in minutes.
 Based on enterprise standards (CIS Benchmarks) and real-world production setups.
 
-![Security Audit Screenshot](image.png)
+![Security Audit Screenshot 1](proxmox-audit-screenshot-1.png)
+![Security Audit Screenshot 2](proxmox-audit-screenshot-2.png)
 
 [Report Bug](https://github.com/tahaex/proxmox-hardening-suite/issues) · [Request Feature](https://github.com/tahaex/proxmox-hardening-suite/issues)
 
